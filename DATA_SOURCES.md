@@ -1,156 +1,218 @@
 # Data Source Evaluation
 
-> Verification status: direct public documentation checks completed for the entries marked **verified**. Provider account/trial tests are still required before purchase or production use.
+> Verified against accessible official documentation and public endpoints in September 2026. Provider account/trial tests remain mandatory before production use.
 
-## 1. Current recommendation
+## 1. Decision summary
 
-### Primary odds feed: Odds-API.io
+### Free prototype
 
-**Why it currently leads**
+- **Football fixtures/results/tables:** football-data.org Free.
+- **Limited current football/tennis odds:** The Odds API Free (500 credits/month).
+- **Optional public market data:** Polymarket Gamma/CLOB APIs.
+- **Football research data:** StatsBomb Open Data where competition/season coverage happens to match.
+- **Tennis historical bootstrap:** Tennis-Data.co.uk free spreadsheet downloads, subject to copyright/licensing confirmation.
+- **Tennis operational trial:** API-Tennis 14-day trial.
 
-- Its public `/v3/bookmakers` endpoint returned both `1xbet` and `BC.Game` as active.
-- Its public `/v3/sports` endpoint returned both Football and Tennis.
-- Documentation exposes current odds, multi-event odds, recently updated odds, movement history, historical events/odds, and bulk historical closing lines.
-- It provides a single normalization surface instead of scraping bookmaker sites.
+This is enough to implement and exercise provider abstractions, normalization, no-vig calculations, model baselines, alert rendering, scheduling, and forward snapshot collection. It is **not enough to certify the frozen V1 strategy**, because free plans do not provide complete two-year report-time odds, all target markets, current xG/injury coverage, and a permanent operational tennis feed.
 
-**Directly verified URLs**
+### Budget-conscious validated V1
 
-- Documentation: https://docs.odds-api.io/
-- Documentation index: https://docs.odds-api.io/llms.txt
-- Bookmakers: https://api.odds-api.io/v3/bookmakers
-- Sports: https://api.odds-api.io/v3/sports
-- Pricing: https://odds-api.io/pricing
+- **Football statistics:** Sportmonks, or football-data.org for a reduced non-xG baseline.
+- **Tennis statistics:** API-Tennis Starter, after its 14-day trial passes all coverage/licensing gates.
+- **Current and historical bookmaker odds:** The Odds API paid plan.
+- **Optional corroboration/executable exchange depth:** Polymarket public APIs.
 
-**Directly observed public catalogue entries**
+### Stronger production option
 
-```json
-{"name": "1xbet", "active": true}
-{"name": "BC.Game", "active": true}
-```
+- **Football:** Sportmonks with required league and xG bundles.
+- **Tennis:** Sportradar Tennis Base under a commercial contract.
+- **Odds:** OpticOdds or another contracted normalized odds feed when limits, streaming, freshness, and wider bookmaker coverage justify the cost.
 
-**Observed public pricing page**
+## 2. Free sources
 
-- Solo: £49/month, 2 bookmakers, 5,000 requests/hour.
-- Starter: £99/month, 5 bookmakers, 5,000 requests/hour.
-- Growth: £179/month, 10 bookmakers, 5,000 requests/hour.
-- Pro: £229/month, 15 bookmakers, 5,000 requests/hour.
-- The page states that new free API keys are paused indefinitely.
+### football-data.org Free
 
-Prices and inclusions can change and must be rechecked before purchase.
+Official URLs:
 
-**Unresolved gates**
+- Coverage: https://www.football-data.org/coverage
+- Pricing: https://www.football-data.org/pricing
+- Documentation: https://www.football-data.org/documentation/quickstart
 
-- Whether the Solo tier allows choosing both 1xBet and BC.Game specifically.
-- Exact football competition and V1 market coverage for those two books.
-- Exact ATP/WTA tournament coverage.
-- Cost/inclusion of two years of historical closing or timestamped odds.
-- Whether report-time historical snapshots are available; closing odds alone are insufficient for an exact three-hours-before-earliest-event backtest.
-- Telegram display/redistribution terms.
+Verified free-tier terms/features:
 
-### Tennis statistics candidate: API-Tennis
+- €0 forever;
+- 12 competitions;
+- delayed scores/schedules;
+- fixtures and league tables;
+- 10 calls/minute.
 
-**Directly verified URLs**
+The free highlights include Premier League, La Liga, Serie A, Eredivisie, and Champions League. Europa League is present in the provider’s overall catalogue, but its availability under the exact free account must be tested.
 
-- Website/pricing section: https://api-tennis.com/#plans
-- Documentation: https://api-tennis.com/documentation
+Useful for fixtures, results, tables, and result-based baseline models. Not sufficient alone for current injuries, comprehensive xG, historical bookmaker odds, or all V1 markets.
 
-**Verified documented capabilities**
+### The Odds API Free
 
-- tournaments;
-- fixtures and live scores;
-- standings/rankings and players;
-- H2H;
-- pre-match odds and live odds;
-- draws including tournament surface and qualification flags;
-- documented sample odds containing 1xBet.
+Official URLs:
 
-**Observed public pricing page**
+- Home/pricing: https://the-odds-api.com/
+- Documentation: https://the-odds-api.com/liveapi/guides/v4/
+- Sports: https://the-odds-api.com/sports-odds-data/sports-apis.html
+- Bookmakers: https://the-odds-api.com/sports-odds-data/bookmaker-apis.html
+- Historical data: https://the-odds-api.com/historical-odds-data/
 
-- Starter: $40/month, 8,000 requests/day, 14-day trial.
-- Premium: $60/month, 80,000 requests/day, 14-day trial.
-- Business: $80/month, 200,000 requests/day, 14-day trial.
-- Ultra: $120/month, 2,000,000 requests/day, 14-day trial.
+Verified:
 
-The public page lists tournaments, fixtures, live score, standings, players, H2H, odds, and draw on Starter. Prices and inclusions must be rechecked at signup.
+- Free tier: 500 credits/month.
+- Football and tennis current/upcoming odds.
+- All six target football competitions are listed.
+- 1xBet appears in EU bookmaker coverage.
+- Featured markets include 1X2/moneyline, spreads/handicaps, and totals.
+- Historical odds are **paid-only**.
 
-**Unresolved gates**
+Use the free plan for low-frequency development snapshots, not continuous final-24h monitoring. It cannot reproduce a two-year three-hours-before-report backtest.
 
-- Historical depth and effective-date ranking snapshots.
-- Reliable representation of retirement/walkover/withdrawal and absence periods.
-- Main-draw tournament-level taxonomy needed to enforce 500+.
-- Serve/return statistics completeness.
-- Data license and Telegram display terms.
+### Polymarket public APIs
 
-### Football statistics candidate: Sportmonks Football API 3.0
+Official endpoints:
 
-**Directly verified URLs**
-
-- Documentation: https://docs.sportmonks.com/v3
-- Documentation index: https://docs.sportmonks.com/v3/llms.txt
-
-**Verified documented capabilities**
-
-- current and historical fixtures;
-- date/range and H2H fixture endpoints;
-- fixture statistics;
-- lineups and predicted lineups;
-- xG endpoints and coverage documentation;
-- pre-match news;
-- predictions/probabilities;
-- standard and premium pre-match odds;
-- premium historical odds endpoints;
-- bookmaker and market endpoints.
-
-**Unresolved gates**
-
-- Current monthly price for the exact six competitions and required add-ons.
-- xG coverage for every target competition and both historical seasons.
-- injury/suspension coverage and expected-lineup timeliness.
-- whether premium historical odds are included in an affordable plan.
-- exact 1xBet/BC.Game availability if Sportmonks odds were used instead of Odds-API.io.
-- redistribution rights.
-
-### Optional market corroboration: Polymarket
-
-Public, read-only APIs require no trading credentials:
-
-- Gamma API: https://gamma-api.polymarket.com
-- CLOB API: https://clob.polymarket.com
+- Gamma discovery: https://gamma-api.polymarket.com
+- CLOB prices/books/history: https://clob.polymarket.com
 - Data API: https://data-api.polymarket.com
 
-Use only for exact event/outcome matches. It is not a required feed because many football derivative markets and tennis matches may not have corresponding contracts.
+Public market discovery and market-data reads require no authentication. Trading authentication is out of scope.
 
-## 2. Sources not selected as the primary design assumption
+Verified sports metadata includes broad football and tennis coverage. Coverage is opportunistic rather than complete, and many exact football derivative markets will be absent. Use Polymarket only for exact semantic matches.
 
-### Direct 1xBet/BC.Game website scraping
+For executable exchange prices, use the CLOB order book and calculate size-specific VWAP. Do not treat a midpoint or last trade as an executable quote.
 
-Do not make this the default architecture because:
+Direct Polymarket access is filtered on the current local network. Production must use a legally permitted, unrestricted deployment region; do not use relays or geoblock bypasses.
 
-- HTML and internal endpoints can change without notice;
-- bot protection and regional behavior are likely;
-- account/session flows could accidentally couple alerts to wagering credentials;
-- terms may prohibit automated extraction;
-- historical data and stable market IDs are difficult to guarantee.
+### StatsBomb Open Data
 
-A licensed aggregator with documented access is preferred.
+- Repository: https://github.com/statsbomb/open-data
 
-### football-data.org
+Free high-quality event/xG data for selected competitions and seasons. It does not provide complete recent two-season coverage for all six target competitions, so it is a research supplement rather than an operational feed.
 
-The public documentation verifies fixtures/results, teams, standings, match details, lineups fields, and basic 1X2 odds fields. It does not by itself establish all required xG, injury, historical-odds, Asian-line, BTTS, team-total, and first-half-market coverage. It may be useful as a low-cost schedule/result fallback, not yet as the complete V1 feed.
+### Tennis-Data.co.uk
 
-### The Odds API
+- Homepage: http://www.tennis-data.co.uk/
+- Data: http://www.tennis-data.co.uk/data.php
+- Fields: http://www.tennis-data.co.uk/notes.txt
 
-Documentation verifies current and historical odds and tennis/football coverage. Its common markets are moneyline, spreads, and totals, with regional bookmaker lists. Exact 1xBet and BC.Game inclusion has not been verified, so it remains a fallback candidate rather than the current first choice.
+Verified advertised data:
 
-## 3. Required provider proof before coding adapters
+- ATP results from 2000;
+- WTA results/odds from 2007;
+- surface and indoor/outdoor fields;
+- winner/loser ranking at tournament start;
+- retirement/walkover comments;
+- historical pre-match and average/maximum odds;
+- updated weekly, with Grand Slam delay.
 
-Obtain trial/API-key responses and save redacted samples for:
+It is batch historical data, not an operational schedule API. The site advertises free files but retains copyright over spreadsheet data. Obtain permission before using it in a commercial or paid alert service.
 
-1. Premier League full-time 1X2, Asian handicap, totals, BTTS, team totals, first-half result, and first-half totals from 1xBet and BC.Game.
-2. One match from each remaining football competition.
-3. ATP and WTA 500/1000/Grand Slam match-winner odds from both target bookmakers where offered.
-4. Historical odds snapshots or closing lines for all V1 market families.
-5. Football xG, lineups, injuries/news, scores, and fixture-status changes.
-6. Tennis ranking, surface, tournament level, main-draw flag, result status, retirement/walkover, and H2H.
+### API-Tennis trial
 
-No adapter should be declared production-ready from documentation alone.
+- Product/pricing: https://api-tennis.com/
+- Documentation: https://api-tennis.com/documentation
+- Terms: https://api-tennis.com/terms-of-use
+
+All plans advertise a 14-day trial. There is no verified permanent free plan.
+
+## 3. Paid operational candidates
+
+### The Odds API paid
+
+Verified current pricing:
+
+- 20K credits: US$30/month;
+- 100K: US$59/month;
+- 5M: US$119/month;
+- 15M: US$249/month.
+
+Historical featured-market snapshots exist from June 2020, initially at 10-minute and later 5-minute intervals. Historical endpoints return the nearest snapshot at or before a requested timestamp, which fits report-time backtesting better than closing lines alone.
+
+Official terms permit storage, application display, derived calculations, analytics, and ML training, while prohibiting raw-feed resale. This is a strong fit for derived Telegram alerts. Quotes remain indicative and should be manually verified before any wager.
+
+Historical queries consume significant credits, so estimate a two-season backfill before choosing a plan.
+
+### API-Tennis Starter
+
+Verified current advertised terms:
+
+- US$40/month;
+- 8,000 requests/day;
+- 14-day trial;
+- fixtures, rankings, players, H2H/recent matches, surface, draw, odds, scores, and statistics;
+- official documentation shows 1xBet in a match-winner response.
+
+BC.Game is not documented. Historical retention, odds timestamps, withdrawal/status taxonomy, exact 500+ classification, and Telegram-derived-alert rights must be confirmed during the trial and in writing.
+
+### Sportmonks Football
+
+Official URLs:
+
+- Coverage: https://www.sportmonks.com/football-api/coverage/
+- Pricing: https://www.sportmonks.com/football-api/plans-pricing/
+- Documentation: https://docs.sportmonks.com/v3
+
+Verified official coverage lists all six target competitions with fixtures, historical data, match statistics, confirmed lineups/player statistics, and odds flags.
+
+Advertised monthly plans:
+
+- Starter: €29/month, choose 5 leagues;
+- Growth: €99/month, choose 30 leagues;
+- Pro: €249/month, choose 120 leagues;
+- 14-day trial advertised;
+- prices exclude VAT.
+
+All six competitions exceed Starter’s five-league allowance unless an extra league can be added economically.
+
+Relevant add-ons/bundles:
+
+- xG & Pressure Index: official pages show varying starting packaging (€15 on one product page; €29 monthly/€24 annual equivalent on the plans page);
+- Odds & Predictions: starting around €24 monthly/€15 annual equivalent;
+- expected lineups: €199/month and only on Growth/Pro.
+
+Do not purchase expected lineups for V1. Use confirmed lineups/injuries and downgrade data quality before team sheets are released.
+
+### Sportradar Tennis
+
+- Marketplace: https://marketplace.sportradar.com/products/6501e20f236aba44b550bdae
+- Documentation: https://developer.sportradar.com/tennis/llms.txt
+
+Strongest verified tennis lifecycle/status option. It covers Grand Slams, ATP/WTA, rankings, surfaces, H2H, historical seasons, and explicit cancelled/walkover/retired/defaulted states. Production pricing is quote-based and sportsbook odds are a separate commercial product.
+
+### OpticOdds
+
+- Documentation: https://developer.opticodds.com/reference/getting-started
+- Historical product: https://opticodds.com/historical-odds
+
+Commercial option with soccer/tennis, current and historical normalized sportsbook odds, streaming, and quoted limits. No simple free production key was verified.
+
+## 4. Bookmaker-specific decision
+
+### 1xBet
+
+No public official self-service sportsbook odds API was verified. Use a licensed aggregator. The Odds API explicitly lists 1xBet in its EU bookmaker coverage; API-Tennis also documents it in tennis odds examples.
+
+### BC.Game
+
+No public official odds API was verified. BC.Game sportsbook terms prohibit automated systems including scanners and robots. Do not scrape or reverse-engineer private endpoints. Exclude direct BC.Game integration unless written permission or a licensed feed with clear rights is obtained.
+
+Odds-API.io’s public bookmaker catalogue listed BC.Game, but exact plan availability, history, market coverage, and licensing remain unproven; documentation/catalogue presence alone is not enough for production selection.
+
+## 5. Required proof gates
+
+Before enabling model-backed alerts, trial/API responses must prove:
+
+1. Every covered competition/tournament and V1 market is available.
+2. Historical timestamps match the simulated daily decision time rather than only closing lines.
+3. Two completed seasons/years are accessible and affordable.
+4. 1xBet coverage is adequate; BC.Game is optional unless licensed.
+5. Football xG/lineup/injury fields and missingness are understood.
+6. Tennis ranking effective dates, surface, main-draw level, cancellation/retirement, and absence logic are reliable.
+7. Terms permit storage, model training, derived Telegram alerts, and displayed indicative odds.
+8. Polling volume fits the selected quota.
+
+No provider adapter should be declared production-ready from documentation alone.
