@@ -1,303 +1,288 @@
-# Sports Edge Alert Bot — Architecture Draft
-
-> Status: draft pending final provider verification and account-level coverage tests.
+# Sports Probability Alert Bot — V1 Architecture
 
 ## 1. Design goals
 
-- Alert-only; no wagering credentials or bet placement.
-- Reproducible, leakage-safe two-year backtests.
-- Provider-independent canonical data model.
-- UTC storage with UTC+7 presentation/day grouping.
-- Full raw-payload audit trail for every model input and price.
-- Deterministic qualification and accumulator generation.
-- One daily bilingual report plus material status updates.
-- Operable on a small Linux VPS after local validation.
+- $0/month data path for private/personal V1.
+- Football probability forecasts without odds/value claims.
+- Independent tennis model compared with executable Polymarket CLOB asks.
+- Provider-independent canonical models and immutable raw snapshots.
+- Leakage-safe chronological backtests.
+- UTC storage, UTC+7 reports.
+- No bet placement, bookmaker credentials, stakes, or accumulators.
 
-## 2. Proposed stack
+## 2. Stack
 
 - Python 3.11+
-- `uv` for dependency/environment management
-- Pydantic v2 for canonical provider models and configuration
-- HTTPX for async provider clients
-- Polars + DuckDB + Parquet for historical feature engineering/backtesting
-- SQLite initially for scheduler/runtime state; PostgreSQL remains an optional production upgrade
-- scikit-learn/LightGBM for tabular models
-- statsmodels/scipy for Poisson and statistical confidence tests
-- APScheduler for UTC+7-aware collection and alert scheduling
-- python-telegram-bot for Telegram delivery
-- pytest, pytest-asyncio, Hypothesis, Ruff, mypy
-- Docker/systemd only after local end-to-end validation
+- Pydantic v2 and HTTPX
+- Polars + DuckDB + Parquet for historical data/backtests
+- SQLite for runtime state
+- scipy/statsmodels/scikit-learn for modeling/calibration
+- APScheduler and python-telegram-bot
+- pytest, Hypothesis, Ruff, mypy
 
-## 3. Component boundaries
+## 3. Data flow
 
 ```text
-Provider APIs
-  ├─ football statistics adapter
-  ├─ tennis statistics adapter
-  ├─ bookmaker odds adapter
-  └─ optional Polymarket adapter
-          │
-          ▼
-Raw immutable snapshots ──► canonical normalizer/entity resolver
-                                  │
-                    ┌─────────────┴─────────────┐
-                    ▼                           ▼
-             historical lake              runtime store
-             Parquet/DuckDB                SQLite/Postgres
-                    │                           │
-                    ▼                           ▼
-          feature/backtest pipeline      rolling 24h scanner
-                    │                           │
-                    ▼                           ▼
-         frozen model artifacts ───────► probability engine
-                                                │
-                                                ▼
-                                      no-vig + edge engine
-                                                │
-                                                ▼
-                                qualification/composite ranking
-                                                │
-                             ┌──────────────────┴───────────────┐
-                             ▼                                  ▼
-                       single selections              2/3-leg optimizer
-                             └──────────────────┬───────────────┘
-                                                ▼
-                                     bilingual report renderer
-                                                │
-                                                ▼
-                                          Telegram sender
+football-data.org API              Tennis-Data files
+          │                               │
+          ▼                               ▼
+ football raw snapshots          tennis historical lake
+          │                               │
+          ▼                               ▼
+ football normalizer             tennis feature/model pipeline
+          │                               │
+          ▼                               │
+ football feature/model pipeline          │
+          │                               │
+          ▼                               │
+ probability forecasts           Polymarket Gamma discovery
+          │                               │
+          │                      strict event/contract matcher
+          │                               │
+          │                       CLOB order-book snapshot
+          │                               │
+          │                       executable ask/VWAP + edge
+          │                               │
+          └──────────────┬────────────────┘
+                         ▼
+            qualification and ranking
+                         │
+                         ▼
+             bilingual daily renderer
+                         │
+                         ▼
+                    Telegram
 ```
 
 ## 4. Provider interfaces
 
-All external providers must implement typed adapters. Provider-native IDs must never leak into modeling code.
+### `FootballDataProvider`
 
-### Football statistics provider
+```text
+list_competitions()
+list_events(date_range, competition_ids)
+get_event(event_id)
+get_standings(competition_id, season)
+get_matches(competition_id, season/date_range)
+```
 
-Required capabilities:
+The adapter must persist raw responses, honor 10-calls/minute free-tier limits, cache aggressively, and disable unavailable competitions rather than substituting scraped data.
 
-- covered competitions/seasons/fixtures;
-- teams and stable team identity mapping;
-- full-time and half-time scores;
-- fixture/team statistics;
-- xG or a documented proxy;
-- lineups/expected lineups where available;
-- injuries/suspensions/news where available;
-- fixture status changes.
+### `TennisHistoricalProvider`
 
-### Tennis statistics provider
+```text
+list_files(year, tour)
+load_matches(year, tour)
+normalize_match(record)
+```
 
-Required capabilities:
+The adapter downloads/caches Tennis-Data files, records source URL/hash/retrieval timestamp/schema, and rejects schema drift. Historical source files must not be redistributed.
 
-- tournaments, level, tour, surface, format, main-draw status;
-- fixtures/results and retirements/walkovers;
-- ATP/WTA rankings with effective dates;
-- player identities;
-- recent results and H2H;
-- absence/return signals or enough history to derive them.
+### `PolymarketProvider`
 
-### Odds provider
+```text
+discover_events(time_range, sport="tennis")
+get_markets(event_id)
+get_order_book(token_id)
+get_price_history(token_id, interval)
+executable_ask_vwap(token_id, target_size)
+```
 
-Required capabilities:
-
-- pre-match football and tennis events;
-- 1xBet and/or BC.Game current decimal odds;
-- required V1 markets and lines;
-- exact bookmaker and market timestamps;
-- historical odds or closing lines for backtesting;
-- market/outcome settlement metadata or stable canonical mappings.
-
-### Optional Polymarket provider
-
-- Gamma API for event/market discovery;
-- CLOB API for current price/orderbook/history;
-- strict event and settlement-rule matching;
-- corroboration only; never required for qualification.
+Use Gamma for discovery and CLOB `/book` as the price authority. No wallet/trading authentication belongs in the repository.
 
 ## 5. Canonical entities
 
-- `Sport`
 - `Competition`
-- `Season`
 - `Tournament`
 - `Event`
-- `Participant` (team/player)
+- `Participant`
 - `RankingSnapshot`
-- `FootballTeamSnapshot`
-- `TennisPlayerSnapshot`
-- `AvailabilityNews`
+- `FootballMatchResult`
+- `TennisMatchResult`
 - `MarketDefinition`
-- `OutcomeDefinition`
-- `OddsSnapshot`
-- `MarketConsensusSnapshot`
+- `PolymarketContract`
+- `OrderBookSnapshot`
 - `FeatureSnapshot`
 - `ModelArtifact`
 - `Prediction`
-- `QualifiedSelection`
-- `AccumulatorCandidate`
+- `FootballForecastOption`
+- `TennisEdgeSelection`
 - `DailyReport`
 - `AlertRevision`
 
-Every time-dependent row carries `observed_at_utc`, `effective_at_utc`, provider, provider ID, and raw snapshot reference.
+Every time-dependent row includes `observed_at_utc`, `effective_at_utc`, source ID, and raw snapshot reference.
 
-## 6. Odds and no-vig logic
+## 6. Football pipeline
 
-### Market normalization
+### Features
 
-Canonical market keys must encode period, market family, line, participant (if any), and settlement scope. Examples:
+At historical cutoff `as_of_utc`, derive only prior data:
 
-- `football:full_time:1x2`
-- `football:full_time:total_goals:2.5`
-- `football:first_half:total_goals:1.0`
-- `football:full_time:asian_handicap:home:-0.75`
-- `tennis:match:moneyline`
+- last 10 matches;
+- goals for/against;
+- home/away splits;
+- opponent-adjusted strength;
+- league-table/form context;
+- H2H from previous three seasons;
+- full-time/half-time distributions;
+- rest/congestion when derivable;
+- missingness/data-quality flags.
 
-Do not merge bookmaker outcomes unless event identity, market family, period, line, participants, and settlement semantics match.
+### Models
 
-### No-vig conversion
+- Poisson/Dixon-Coles baseline;
+- regularized tabular model;
+- calibrated ensemble.
 
-For mutually exclusive outcomes with decimal odds `o_i`:
+Models emit a coherent score distribution from which canonical option probabilities are derived. Derived probabilities must respect logical invariants; for example, probabilities of mutually exclusive 1X2 outcomes sum to one.
+
+### Qualifier
+
+For each match:
+
+- compute all supported option probabilities;
+- remove redundant duplicates;
+- require each displayed option to be at least 0.60;
+- rank by probability, confidence, agreement, and data quality;
+- return at most three;
+- return no match section when none qualify.
+
+No football odds/edge fields exist in the V1 domain or renderer.
+
+## 7. Tennis pipeline
+
+### Historical features
+
+From Tennis-Data records, point-in-time only:
+
+- latest reliable ranking-at-tournament;
+- top-50 eligibility;
+- surface-aware Elo;
+- last 10 overall;
+- last 10 current-surface matches;
+- opponent strength;
+- H2H after three prior meetings;
+- prior retirement/walkover flags;
+- rest/fatigue when derivable;
+- tournament level and format.
+
+### Model
+
+Train a calibrated ranking/surface/form classifier. Model artifacts include data hashes, cutoff, schema, calibration, feature definitions, and segment/pooled-fallback metadata.
+
+### Current event matching
+
+A strict matcher maps a Polymarket match-winner contract to model participants. Require:
+
+- normalized player identities;
+- exact individual match, not outright;
+- compatible tournament and date/round window;
+- correct outcome orientation;
+- compatible cancellation/retirement settlement rules.
+
+Ambiguity means rejection, never heuristic auto-acceptance.
+
+### Executable price and edge
+
+Read the CLOB order book and calculate the best ask or target-size VWAP. Record:
+
+- token ID;
+- observed/received timestamps;
+- price levels and available sizes;
+- spread;
+- target-size VWAP;
+- configured fee/slippage/staleness buffer.
 
 ```text
-raw_i = 1 / o_i
-fair_i = raw_i / sum(raw_j)
+effective_market_probability = ask_vwap + fee_buffer + slippage_buffer + staleness_buffer
+edge = model_probability - effective_market_probability
 ```
 
-Implement pluggable no-vig methods so proportional normalization can later be compared with power/Shin methods. Freeze one method per backtest configuration.
+Qualify only when all `STRATEGY.md` tennis rules pass, including model probability ≥0.65, top-50 eligibility, effective price ≤0.7692, validated minimum edge, freshness/depth, and unambiguous mapping.
 
-### Consensus
-
-- One supported bookmaker is sufficient under the agreed V1 rule.
-- If several books are present, compute a timestamp-aligned no-vig consensus and disagreement score.
-- Book disagreement lowers data quality.
-- Polymarket may be displayed as corroboration only when the contract is an exact semantic match.
-
-## 7. Feature rules
+## 8. Backtests
 
 ### Football
 
-At each historical decision timestamp, derive only from prior observations:
-
-- last 10 matches overall;
-- last 10 home/away-aware samples where feasible;
-- opponent-adjusted attacking/defensive strength;
-- xG for/against and goal conversion/prevention;
-- rest days and congestion;
-- H2H from the previous three seasons;
-- lineup/injury/rotation/news quality flags;
-- market consensus and movement available by decision time.
+- Two completed seasons where free API coverage is reliable.
+- Chronological train/validation/holdout.
+- Evaluate hit rate, confidence interval, Brier score, calibration curves, sample, and segment stability.
+- Never report ROI or edge without odds.
 
 ### Tennis
 
-- effective-date ATP/WTA ranking;
-- top-50 eligibility at event time;
-- last 10 overall matches;
-- last 10 on the current surface;
-- opponent strength and ranking differences;
-- H2H only after at least three prior meetings;
-- retirement/walkover handling;
-- first match after long absence hard block;
-- tournament level, tour, surface, and match format.
+- Two completed years of Tennis-Data where schemas/coverage pass validation.
+- Chronological train/validation/holdout.
+- Historical closing odds can support provisional value analysis but are not equivalent to production CLOB asks.
+- Persist all production Polymarket order books to build a true forward decision-time dataset.
 
-The exact definition of `long absence` must be selected in validation and frozen (candidate values: 60/90/120 days).
+## 9. Runtime scheduler
 
-## 8. Modeling and backtest design
+- Discover UTC+7 day events.
+- Determine the earliest covered event.
+- Build and send one report three hours before it.
+- Persist report idempotency key by UTC+7 date.
+- Continue monitoring only for cancellation/withdrawal/material data corrections.
+- Never send updates for price movement alone unless the tennis selection changes qualification status.
 
-### Decision timestamps
-
-The production report is sent three hours before the earliest covered event of the UTC+7 day, so backtests must use odds/features captured at an equivalent historical decision time where available. Closing odds cannot substitute for report-time odds without being labeled as a proxy experiment.
-
-### Chronological evaluation
-
-For each league/market or tour/surface/format bucket:
-
-1. Train on the earliest interval.
-2. Tune threshold/model on a later validation interval.
-3. Evaluate once on a final untouched holdout interval.
-4. Require at least 50 holdout selections.
-5. Freeze artifact, feature schema, no-vig method, and threshold together.
-
-### Football candidates
-
-- independent/Dixon-Coles Poisson baseline;
-- regularized tabular classifier/regressor;
-- calibrated ensemble combining model and no-vig market probability.
-
-### Tennis candidates
-
-- ranking-led logistic baseline;
-- ranking + surface/recent-form model;
-- calibrated ranking/form model with market probability as a supporting feature.
-
-### Metrics
-
-Primary: out-of-sample hit rate.
-
-Mandatory guardrails:
-
-- confidence interval/lower bound;
-- calibration/Brier score;
-- positive realized return at recorded report-time odds when those odds exist;
-- edge over no-vig market;
-- sample size;
-- leakage audit.
-
-## 9. Qualification
-
-A deterministic policy consumes a prediction and current market snapshot. It applies the exact floors and statistical thresholds from `STRATEGY.md`. The policy emits a machine-readable reason for every pass/fail decision.
-
-Example reject reasons:
-
-- `ODDS_BELOW_FLOOR`
-- `PROBABILITY_BELOW_FLOOR`
-- `EDGE_BELOW_BACKTEST_THRESHOLD`
-- `INSUFFICIENT_SAMPLE_CONFIDENCE`
-- `STALE_ODDS`
-- `MARKET_MAPPING_AMBIGUOUS`
-- `TENNIS_PLAYER_OUTSIDE_TOP_50`
-- `TENNIS_FIRST_MATCH_AFTER_ABSENCE`
-
-## 10. Accumulator optimizer
-
-- Input: independently qualified singles.
-- Exclude two legs sharing an event ID.
-- Allow cross-sport combinations.
-- Require combined decimal odds > 2.00.
-- Generate all eligible 2- and 3-leg combinations within a bounded slate.
-- Rank by adjusted combined hit probability.
-- Start with the product of leg probabilities only across separate events, then apply a configurable same-day/team/player/dependence penalty where evidence warrants it.
-- Return exactly the best valid two-leg and best valid three-leg combinations when each exists.
-
-## 11. Alert state machine
+## 10. Alert state
 
 ```text
 UNSEEN -> QUALIFIED -> ALERTED -> STILL_VALID
                          |             |
-                         └─────────────┴──> EDGE_EXPIRED
+                         └─────────────┴──> EXPIRED_OR_CANCELLED
 UNSEEN/REJECTED -> QUALIFIED_AFTER_REPORT -> NEW update
 ```
 
-A price change alone updates storage but does not trigger Telegram. A message is triggered only by a status transition or material news assessment.
+Football and tennis reasons remain separate:
+
+Football rejection examples:
+
+- `PROBABILITY_BELOW_60`
+- `INSUFFICIENT_HISTORY`
+- `UNCALIBRATED_SEGMENT`
+- `LOW_DATA_QUALITY`
+
+Tennis rejection examples:
+
+- `MODEL_PROBABILITY_BELOW_65`
+- `PLAYER_OUTSIDE_TOP_50`
+- `STALE_RANKING`
+- `AMBIGUOUS_CONTRACT`
+- `STALE_OR_EMPTY_BOOK`
+- `EFFECTIVE_PRICE_ABOVE_07692`
+- `EDGE_BELOW_THRESHOLD`
+- `FIRST_MATCH_AFTER_ABSENCE`
+
+## 11. Storage and auditing
+
+- Immutable raw football JSON snapshots.
+- Immutable source metadata and hashes for Tennis-Data files.
+- Immutable Polymarket order-book snapshots.
+- Canonical entity mappings with manual override support.
+- Frozen model/config/data hashes.
+- Explainable pass/fail reason for every evaluated option/contract.
+- No licensed/open source raw dataset redistribution.
 
 ## 12. Security and operations
 
-- Secrets only in environment variables or a root-readable service environment file; never commit them.
-- Read-only provider credentials.
-- Telegram bot token has no relation to bookmaker accounts.
-- Structured logs must redact tokens and query-string API keys.
-- Persist raw provider responses before transformation.
-- Cache entity mappings and API responses to control costs.
-- Monitor stale feeds, missing competitions, mapping collisions, scheduler lag, and Telegram failures.
-- Never silently continue with stale odds.
+- football-data.org API key and Telegram token only in local environment/service secret files.
+- No Polymarket wallet key.
+- Logs redact tokens and query-string keys.
+- Cache provider responses to remain within free quotas.
+- Fail closed on stale data, mapping ambiguity, missing order books, or quota exhaustion.
+- Personal/private Telegram chat only in V1.
 
-## 13. Open provider gates
+## 13. Proof gates
 
-Before implementation is considered production-capable, verify with trial/API keys:
+Before enabling alerts:
 
-1. Exact 1xBet and BC.Game market availability for all covered football competitions and tennis event levels.
-2. Historical report-time odds availability, not only closing lines.
-3. Full V1 football market/line coverage.
-4. Football xG, lineup, injury, and historical-season coverage.
-5. Tennis ranking effective dates, surface, retirements, main-draw qualification, and H2H completeness.
-6. Redistribution/display rights for Telegram alerts under each provider’s terms.
-7. Request limits and monthly cost at a final-24h polling cadence.
+1. Free football-data.org key confirms each enabled competition and two-season history.
+2. Football half-time/deep fields are measured; unsupported markets are disabled.
+3. Tennis-Data 2024–2026 files download successfully, schemas are mapped, and private-use terms are accepted.
+4. Target ATP/WTA 500+ events can be reliably classified.
+5. Polymarket individual match contracts can be distinguished from outrights.
+6. CLOB book-side semantics and ask VWAP are covered by recorded contract tests.
+7. Local network restrictions are not bypassed; deployment has lawful direct read access.
+8. Football calibration and tennis historical edge gates pass with real outputs.
+9. One end-to-end dry report is rendered before Telegram sending is enabled.

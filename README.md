@@ -1,6 +1,6 @@
-# Sports Edge Alert Bot
+# Sports Probability Alert Bot
 
-Alert-only football and tennis pre-match analysis system. It compares model probabilities with no-vig bookmaker probabilities, ranks statistically reliable positive-edge selections, and renders one bilingual UTC+7 Telegram report per day.
+Private, alert-only football and tennis pre-match analysis system. Football reports contain up to three calibrated ≥60% probability forecasts per qualifying match without evaluating bookmaker odds. Tennis alerts use an independent surface/form model and require statistically validated edge over an executable Polymarket CLOB ask.
 
 ## Safety boundary
 

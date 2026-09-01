@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sports-edge-alert-bot"
 version = "0.1.0"
-description = "Alert-only football and tennis positive-edge analysis bot"
+description = "Private football probability and Polymarket tennis edge alert bot"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Proprietary"}
