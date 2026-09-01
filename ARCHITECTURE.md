@@ -126,7 +126,33 @@ At historical cutoff `as_of_utc`, derive only prior data:
 - H2H from previous three seasons;
 - full-time/half-time distributions;
 - rest/congestion when derivable;
-- missingness/data-quality flags.
+- missingness/data-quality flags;
+- point-in-time team-regime ID and pre/post-change sample weight.
+
+### Team-regime registry and weights
+
+Create a versioned `TeamRegimeChange` record with:
+
+```text
+team_id
+change_effective_at_utc
+recorded_at_utc
+manager_changed
+regular_starters_changed
+reason
+source_url
+source_note
+```
+
+Rules:
+
+- Manager change always creates a new regime.
+- `regular_starters_changed >= 6` creates a majority-player-turnover regime.
+- Unknown continuity never creates an automatic regime.
+- A historical prediction may see a change only when both its effective date and `recorded_at_utc` are no later than `as_of_utc`.
+- Feature builders attach team-specific sample weights: post-change `1.0`; pre-change one of `0.25`, `0.50`, or `0.75` selected on validation, with `0.50` fallback.
+- In a historical fixture, home-team and away-team feature contributions may carry different regime weights.
+- Persist the selected weight in the frozen model artifact.
 
 ### Models
 

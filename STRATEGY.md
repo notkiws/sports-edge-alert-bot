@@ -109,6 +109,21 @@ Use a rolling last-10-match form window and all prior H2H meetings from the prev
 - prior full-time and half-time score distributions;
 - point-in-time lineup/deep-data fields only when genuinely returned.
 
+### Team-regime change weighting
+
+Treat a confirmed manager change or majority turnover of the regular starting group as a structural break:
+
+- A manager change always starts a new team regime on its effective date.
+- “Majority new players” means at least 6 of the 11 regular/most-used starters changed relative to the previous stable regime.
+- If reliable lineup/squad continuity data is unavailable, mark turnover as unknown; never infer or fabricate a regime change.
+- Maintain a source-dated manual registry containing canonical team ID, effective date, reason, manager-change flag, regular-starter turnover count, evidence source, and `recorded_at_utc`.
+- For a post-change prediction, matches involving that team before the effective date receive lower sample weight than matches after it.
+- Apply the reduced weight only to the changed team’s feature contribution; do not downweight the opponent’s historical performance from the same fixture.
+- Backtest candidate pre-change weights (0.25, 0.50, and 0.75) and freeze the best out-of-sample value by league/model when statistically reliable.
+- Use 0.50 as the fallback when validation cannot distinguish candidate weights.
+- Post-change matches receive weight 1.00.
+- Use only regime changes recorded and publicly known by the historical prediction cutoff; later knowledge must not leak backward.
+
 Choose and calibrate models separately by league and market when sample size permits; otherwise use a documented pooled model with league as a feature.
 
 ## 6. Tennis coverage and sources
