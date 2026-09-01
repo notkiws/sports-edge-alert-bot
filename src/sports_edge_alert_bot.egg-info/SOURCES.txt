@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-src/sports_edge/__init__.py
-src/sports_edge_alert_bot.egg-info/PKG-INFO
-src/sports_edge_alert_bot.egg-info/SOURCES.txt
-src/sports_edge_alert_bot.egg-info/dependency_links.txt
-src/sports_edge_alert_bot.egg-info/requires.txt
-src/sports_edge_alert_bot.egg-info/top_level.txt
-tests/test_package.py
