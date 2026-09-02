@@ -12,6 +12,7 @@ license = {text = "Proprietary"}
 authors = [{name = "Muhammad Rizky Fahreza"}]
 dependencies = [
   "openpyxl>=3.1,<4",
+  "scikit-learn>=1.5,<2",
 ]
 
 [project.optional-dependencies]
