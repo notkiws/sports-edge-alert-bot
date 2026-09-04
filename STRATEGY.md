@@ -259,10 +259,10 @@ Messages must be bilingual English and Bahasa Indonesia.
 - market and selection;
 - estimated probability;
 - historical hit rate and sample size;
-- rank/data-quality grade;
-- concise bilingual reasoning;
-- relevant data warning;
-- explicit label: `PROBABILITY FORECAST — ODDS NOT EVALUATED`.
+- rank/data-quality grade.
+
+Football alerts must remain concise. Do not append probability banners, reasoning,
+or warning prose to each selection.
 
 ### Tennis selection fields
 

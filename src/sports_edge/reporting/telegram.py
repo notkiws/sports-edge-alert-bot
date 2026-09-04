@@ -31,8 +31,7 @@ def _render_football(selection: FootballReportSelection) -> str:
     return "\n".join(
         (
             "⚽ FOOTBALL / SEPAK BOLA",
-            "PROBABILITY FORECAST — ODDS NOT EVALUATED",
-            "PREDIKSI PROBABILITAS — ODDS TIDAK DIEVALUASI",
+            "",
             selection.competition,
             kickoff_wib.strftime("%d %b %Y, %H:%M WIB"),
             f"{selection.home_team} vs {selection.away_team}",
@@ -44,12 +43,6 @@ def _render_football(selection: FootballReportSelection) -> str:
                 f"(n={selection.historical_sample_size})"
             ),
             f"Grade / Nilai: {selection.grade}",
-            f"EN: {selection.reasoning_en}",
-            f"ID: {selection.reasoning_id}",
-            (
-                "Warning / Peringatan: "
-                f"{selection.warning_en} / {selection.warning_id}"
-            ),
         )
     )
 

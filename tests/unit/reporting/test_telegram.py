@@ -24,21 +24,23 @@ def selection() -> FootballReportSelection:
     )
 
 
-def test_render_football_selection_is_bilingual_and_uses_wib() -> None:
+def test_render_football_selection_uses_concise_bilingual_format() -> None:
     message = render_daily_report((selection(),))
 
-    assert "PROBABILITY FORECAST — ODDS NOT EVALUATED" in message
-    assert "PREDIKSI PROBABILITAS — ODDS TIDAK DIEVALUASI" in message
-    assert "03 Sep 2026, 22:00 WIB" in message
-    assert "Arsenal vs Chelsea" in message
-    assert "1X2: HOME / TUAN RUMAH" in message
-    assert "Probability / Probabilitas: 68.0%" in message
-    assert "Historical / Historis: 70.0% (n=120)" in message
-    assert "EN: Strong calibrated home-result probability." in message
-    assert "ID: Probabilitas hasil kandang terkalibrasi kuat." in message
-    assert "Warning / Peringatan:" in message
-    assert "value bet" not in message.casefold()
-    assert "stake" not in message.casefold()
+    assert message == (
+        "⚽ FOOTBALL / SEPAK BOLA\n"
+        "\n"
+        "Premier League\n"
+        "03 Sep 2026, 22:00 WIB\n"
+        "Arsenal vs Chelsea\n"
+        "1X2: HOME / TUAN RUMAH\n"
+        "Probability / Probabilitas: 68.0%\n"
+        "Historical / Historis: 70.0% (n=120)\n"
+        "Grade / Nilai: A"
+    )
+    assert "ODDS NOT EVALUATED" not in message
+    assert "EN:" not in message
+    assert "Warning / Peringatan:" not in message
 
 
 def test_render_empty_day_is_bilingual() -> None:
