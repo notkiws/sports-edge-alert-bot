@@ -32,11 +32,13 @@ confirmed delivery, while a failed request remains eligible for retry.
 Network failures, HTTP 429 responses, and temporary 5xx responses receive at most two
 retries. Errors never include the bot token.
 
-## Activation gate
+## Production activation
 
-No network-delivery cron is installed by this checkpoint. Before scheduled delivery:
+Install the five-minute network-delivery cron only after the private credential setup,
+controlled test send, destination verification, and explicit activation approval are
+complete. The authoritative deployment completed those gates before enabling its
+single delivery cron.
 
-1. Configure the bot token and target privately on the VPS.
-2. Perform one explicit controlled test send.
-3. Inspect the received formatting and destination.
-4. Enable scheduled delivery only after approval.
+To pause delivery without removing credentials, set
+`TELEGRAM_SENDING_ENABLED=false`. The command then exits before reading forecasts or
+opening a network connection.
