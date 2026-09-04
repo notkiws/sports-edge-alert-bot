@@ -124,3 +124,40 @@ def test_same_date_fixtures_cannot_see_each_others_results() -> None:
     assert second_snapshot.home_last_10_goals_for is None
     assert second_snapshot.away_last_10_goals_for is None
     assert second_snapshot.prior_h2h_matches == 0
+
+
+def test_upcoming_fixture_uses_prior_results_without_score_target() -> None:
+    historical_match = match(
+        day=1,
+        home_id="A",
+        away_id="B",
+        home_goals=2,
+        away_goals=0,
+        source_id="1",
+    )
+    upcoming = FootballMatch(
+        source="football-data.org",
+        source_id="2",
+        competition=COMPETITION,
+        kickoff_utc=datetime(2025, 1, 2, 15, tzinfo=UTC),
+        home_team_id="B",
+        home_team_name="Team B",
+        away_team_id="A",
+        away_team_name="Team A",
+        status=MatchStatus.SCHEDULED,
+        score=FootballScore(),
+    )
+
+    snapshot = FootballFeatureBuilder().build_upcoming(
+        (historical_match,),
+        (upcoming,),
+    )[0]
+
+    assert snapshot.source_id == "2"
+    assert snapshot.home_team_name == "Team B"
+    assert snapshot.away_team_name == "Team A"
+    assert snapshot.home_prior_matches == 1
+    assert snapshot.away_prior_matches == 1
+    assert snapshot.home_last_10_goals_for == 0.0
+    assert snapshot.away_last_10_goals_for == 2.0
+    assert not hasattr(snapshot, "full_time_home_goals")

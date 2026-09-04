@@ -35,6 +35,29 @@ class FootballFeatureSnapshot:
     full_time_away_goals: int
 
 
+@dataclass(frozen=True, slots=True)
+class UpcomingFootballFeatureSnapshot:
+    source_id: str
+    competition_code: str
+    competition_name: str
+    kickoff_utc: datetime
+    home_team_id: str
+    home_team_name: str
+    away_team_id: str
+    away_team_name: str
+    home_prior_matches: int
+    away_prior_matches: int
+    home_last_10_goals_for: float | None
+    home_last_10_goals_against: float | None
+    home_last_10_points_per_match: float | None
+    away_last_10_goals_for: float | None
+    away_last_10_goals_against: float | None
+    away_last_10_points_per_match: float | None
+    home_days_rest: int | None
+    away_days_rest: int | None
+    prior_h2h_matches: int
+
+
 def _average(results: deque[TeamResult], index: int) -> float | None:
     if not results:
         return None
@@ -97,6 +120,96 @@ class FootballFeatureBuilder:
             for match in date_matches:
                 self._update(match, histories, total_matches, last_played, h2h_counts)
         return tuple(snapshots)
+
+    def build_upcoming(
+        self,
+        history: Iterable[FootballMatch],
+        fixtures: Iterable[FootballMatch],
+    ) -> tuple[UpcomingFootballFeatureSnapshot, ...]:
+        """Build target-free fixture features from completed prior dates only."""
+
+        histories: dict[TeamKey, deque[TeamResult]] = defaultdict(
+            lambda: deque(maxlen=10)
+        )
+        total_matches: dict[TeamKey, int] = defaultdict(int)
+        last_played: dict[TeamKey, date] = {}
+        h2h_counts: dict[H2HKey, int] = defaultdict(int)
+        completed = [
+            match
+            for match in history
+            if match.status is MatchStatus.FINISHED and match.score.full_time is not None
+        ]
+        upcoming = [
+            match
+            for match in fixtures
+            if match.status in {MatchStatus.SCHEDULED, MatchStatus.TIMED}
+        ]
+        upcoming_ids = {match.source_id for match in upcoming}
+        ordered = sorted(
+            (*completed, *upcoming),
+            key=lambda item: (item.kickoff_utc, item.source_id),
+        )
+        snapshots: list[UpcomingFootballFeatureSnapshot] = []
+        for _, date_group in groupby(ordered, key=lambda item: item.kickoff_utc.date()):
+            date_matches = list(date_group)
+            for match in date_matches:
+                if match.source_id in upcoming_ids:
+                    snapshots.append(
+                        self._upcoming_snapshot(
+                            match,
+                            histories,
+                            total_matches,
+                            last_played,
+                            h2h_counts,
+                        )
+                    )
+            for match in date_matches:
+                if match.status is MatchStatus.FINISHED:
+                    self._update(
+                        match,
+                        histories,
+                        total_matches,
+                        last_played,
+                        h2h_counts,
+                    )
+        return tuple(snapshots)
+
+    def _upcoming_snapshot(
+        self,
+        match: FootballMatch,
+        histories: dict[TeamKey, deque[TeamResult]],
+        total_matches: dict[TeamKey, int],
+        last_played: dict[TeamKey, date],
+        h2h_counts: dict[H2HKey, int],
+    ) -> UpcomingFootballFeatureSnapshot:
+        home_key, away_key, h2h_key = _keys(match)
+        home_history = histories[home_key]
+        away_history = histories[away_key]
+        return UpcomingFootballFeatureSnapshot(
+            source_id=match.source_id,
+            competition_code=match.competition.code,
+            competition_name=match.competition.name,
+            kickoff_utc=match.kickoff_utc,
+            home_team_id=match.home_team_id,
+            home_team_name=match.home_team_name,
+            away_team_id=match.away_team_id,
+            away_team_name=match.away_team_name,
+            home_prior_matches=total_matches[home_key],
+            away_prior_matches=total_matches[away_key],
+            home_last_10_goals_for=_average(home_history, 0),
+            home_last_10_goals_against=_average(home_history, 1),
+            home_last_10_points_per_match=_average(home_history, 2),
+            away_last_10_goals_for=_average(away_history, 0),
+            away_last_10_goals_against=_average(away_history, 1),
+            away_last_10_points_per_match=_average(away_history, 2),
+            home_days_rest=_days_rest(
+                last_played.get(home_key), match.kickoff_utc.date()
+            ),
+            away_days_rest=_days_rest(
+                last_played.get(away_key), match.kickoff_utc.date()
+            ),
+            prior_h2h_matches=h2h_counts[h2h_key],
+        )
 
     def _snapshot(
         self,

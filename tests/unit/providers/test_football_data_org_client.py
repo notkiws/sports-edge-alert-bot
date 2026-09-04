@@ -1,5 +1,6 @@
 import json
 from collections.abc import Mapping
+from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
@@ -37,6 +38,26 @@ def test_fetch_matches_uses_authenticated_season_endpoint() -> None:
     url, headers = transport.calls[0]
     assert url.endswith("/competitions/PL/matches?season=2025")
     assert headers["X-Auth-Token"] == "test-token"
+
+
+def test_fetch_matches_supports_refreshable_date_window() -> None:
+    transport = FakeTransport({"matches": [{"id": 2}]})
+    client = FootballDataOrgClient(
+        api_key="test-token",
+        transport=transport,
+        rate_limiter=MinimumIntervalRateLimiter.disabled(),
+    )
+
+    result = client.fetch_competition_matches_between(
+        "PL",
+        date(2026, 9, 3),
+        date(2026, 9, 10),
+    )
+
+    assert result == {"matches": [{"id": 2}]}
+    assert transport.calls[0][0].endswith(
+        "/competitions/PL/matches?dateFrom=2026-09-03&dateTo=2026-09-10"
+    )
 
 
 def test_rate_limiter_waits_between_requests() -> None:

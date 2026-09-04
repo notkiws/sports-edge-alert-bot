@@ -4,6 +4,7 @@ import json
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -68,6 +69,24 @@ class FootballDataOrgClient:
 
     def fetch_competition_matches(self, competition_code: str, season: int) -> Mapping[str, Any]:
         query = urlencode({"season": season})
+        return self._get(f"/competitions/{competition_code}/matches?{query}")
+
+    def fetch_competition_matches_between(
+        self,
+        competition_code: str,
+        date_from: date,
+        date_to: date,
+    ) -> Mapping[str, Any]:
+        """Fetch a refreshable fixture window without caching stale statuses."""
+
+        if date_from > date_to:
+            raise ValueError("date_from must not be after date_to")
+        query = urlencode(
+            {
+                "dateFrom": date_from.isoformat(),
+                "dateTo": date_to.isoformat(),
+            }
+        )
         return self._get(f"/competitions/{competition_code}/matches?{query}")
 
     def cache_competition_season(
