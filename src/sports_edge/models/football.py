@@ -12,7 +12,12 @@ from sklearn.linear_model import (  # type: ignore[import-untyped]
 from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 from sklearn.preprocessing import StandardScaler  # type: ignore[import-untyped]
 
-from sports_edge.features.football import FootballFeatureSnapshot
+from sports_edge.features.football import (
+    FootballFeatureSnapshot,
+    UpcomingFootballFeatureSnapshot,
+)
+
+FootballPredictionSnapshot = FootballFeatureSnapshot | UpcomingFootballFeatureSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +112,7 @@ def _value(value: float | int | None, default: float = 0.0) -> float:
     return float(value) if value is not None else default
 
 
-def _feature_row(snapshot: FootballFeatureSnapshot) -> list[float]:
+def _feature_row(snapshot: FootballPredictionSnapshot) -> list[float]:
     competition = snapshot.competition_code
     return [
         _value(snapshot.home_last_10_goals_for),
@@ -204,7 +209,7 @@ class FootballPoissonModel:
         self.training_cutoff = max(item.kickoff_utc for item in training)
         self.calibration_cutoff = None
 
-    def _raw_predict(self, snapshot: FootballFeatureSnapshot) -> FootballProbabilities:
+    def _raw_predict(self, snapshot: FootballPredictionSnapshot) -> FootballProbabilities:
         if self._home_pipeline is None or self._away_pipeline is None:
             raise RuntimeError("model has not been fitted")
         row = [_feature_row(snapshot)]
@@ -294,7 +299,7 @@ class FootballPoissonModel:
         self._btts_calibrator = btts_calibrator
         self.calibration_cutoff = max(item.kickoff_utc for item in validation)
 
-    def predict(self, snapshot: FootballFeatureSnapshot) -> FootballProbabilities:
+    def predict(self, snapshot: FootballPredictionSnapshot) -> FootballProbabilities:
         raw = self._raw_predict(snapshot)
         if (
             self._result_calibrator is None
