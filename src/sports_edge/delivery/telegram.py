@@ -176,7 +176,6 @@ def deliver_due_batches(
                     selection.home_team,
                     selection.away_team,
                     selection.market,
-                    selection.selection_en,
                 )
             )
             message_id = deliver_once(

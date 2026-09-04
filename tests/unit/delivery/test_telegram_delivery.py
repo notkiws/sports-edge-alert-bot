@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -142,10 +143,13 @@ def test_deliver_due_batches_sends_each_selection_once(tmp_path: Path) -> None:
         now_utc=datetime(2026, 9, 5, 11, tzinfo=UTC),
         state_path=state_path,
     )
+    changed_batches = build_daily_batches(
+        (replace(selection, selection_en="AWAY", selection_id="TAMU"),)
+    )
     second = deliver_due_batches(
         client,
         chat_id="123",
-        batches=batches,
+        batches=changed_batches,
         now_utc=datetime(2026, 9, 5, 11, 5, tzinfo=UTC),
         state_path=state_path,
     )
