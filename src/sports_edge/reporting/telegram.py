@@ -28,23 +28,26 @@ class FootballReportSelection:
 
 def _render_football(selection: FootballReportSelection) -> str:
     kickoff_wib = selection.kickoff_utc.astimezone(Settings().timezone)
-    return "\n".join(
+    lines = [
+        "⚽ FOOTBALL / SEPAK BOLA",
+        "",
+        selection.competition,
+        kickoff_wib.strftime("%d %b %Y, %H:%M WIB"),
+        f"{selection.home_team} vs {selection.away_team}",
+        f"{selection.market}: {selection.selection_en} / {selection.selection_id}",
+        f"Probability / Probabilitas: {selection.probability:.1%}",
         (
-            "⚽ FOOTBALL / SEPAK BOLA",
-            "",
-            selection.competition,
-            kickoff_wib.strftime("%d %b %Y, %H:%M WIB"),
-            f"{selection.home_team} vs {selection.away_team}",
-            f"{selection.market}: {selection.selection_en} / {selection.selection_id}",
-            f"Probability / Probabilitas: {selection.probability:.1%}",
-            (
-                "Historical / Historis: "
-                f"{selection.historical_hit_rate:.1%} "
-                f"(n={selection.historical_sample_size})"
-            ),
-            f"Grade / Nilai: {selection.grade}",
+            "Historical / Historis: "
+            f"{selection.historical_hit_rate:.1%} "
+            f"(n={selection.historical_sample_size})"
+        ),
+        f"Grade / Nilai: {selection.grade}",
+    ]
+    if selection.grade == "C":
+        lines.append(
+            f"Reason / Alasan: {selection.reasoning_en} / {selection.reasoning_id}"
         )
-    )
+    return "\n".join(lines)
 
 
 def render_daily_report(selections: Iterable[FootballReportSelection]) -> str:

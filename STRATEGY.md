@@ -261,8 +261,9 @@ Messages must be bilingual English and Bahasa Indonesia.
 - historical hit rate and sample size;
 - rank/data-quality grade.
 
-Football alerts must remain concise. Do not append probability banners, reasoning,
-or warning prose to each selection.
+Football alerts must remain concise. Do not append generic probability banners,
+reasoning, or warning prose. Grade C selections must include one bilingual reason
+showing each team's available prior-match count.
 
 ### Tennis selection fields
 

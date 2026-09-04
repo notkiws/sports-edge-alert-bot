@@ -1,5 +1,6 @@
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -77,6 +78,34 @@ def test_runtime_qualification_uses_only_frozen_markets_and_metrics() -> None:
     assert selections[1].historical_hit_rate == 0.7128
     assert selections[1].historical_sample_size == 296
     assert all(item.grade == "A" for item in selections)
+
+
+def test_grade_c_reason_identifies_each_teams_prior_match_count() -> None:
+    probabilities = FootballProbabilities(
+        expected_home_goals=1.8,
+        expected_away_goals=0.8,
+        home_win=0.65,
+        draw=0.22,
+        away_win=0.13,
+        over_2_5=0.70,
+        both_teams_to_score=0.90,
+    )
+
+    selections = qualify_runtime_forecasts(
+        replace(snapshot(), away_prior_matches=0),
+        probabilities,
+    )
+
+    assert all(item.grade == "C" for item in selections)
+    assert all(
+        item.reasoning_en == "Limited prior-match history (Arsenal: 20, Chelsea: 0)."
+        for item in selections
+    )
+    assert all(
+        item.reasoning_id
+        == "Riwayat pertandingan sebelumnya terbatas (Arsenal: 20, Chelsea: 0)."
+        for item in selections
+    )
 
 
 def test_load_historical_matches_normalizes_private_cache(tmp_path: Path) -> None:
@@ -231,3 +260,37 @@ def test_collect_upcoming_fixtures_normalizes_and_caches_provider_snapshot(
     assert client.calls[0][0] == "PL"
     cached = json.loads((tmp_path / "upcoming.json").read_text())
     assert cached["competitions"]["PL"]["matches"][0]["id"] == 99
+
+
+def test_collect_upcoming_fixtures_skips_malformed_irrelevant_status(
+    tmp_path: Path,
+) -> None:
+    client = FakeFixtureClient(
+        {
+            "matches": [
+                {
+                    "id": 100,
+                    "utcDate": "2026-09-04T18:00:00Z",
+                    "status": "2026-09-04 18:00:00Z",
+                    "competition": {
+                        "id": 2021,
+                        "code": "PL",
+                        "name": "Premier League",
+                    },
+                    "homeTeam": {"id": 10, "name": "Home"},
+                    "awayTeam": {"id": 20, "name": "Away"},
+                    "score": {},
+                }
+            ]
+        }
+    )
+
+    fixtures = collect_upcoming_fixtures(
+        client,
+        ("PL",),
+        date_from=datetime(2026, 9, 2, tzinfo=UTC).date(),
+        date_to=datetime(2026, 9, 9, tzinfo=UTC).date(),
+        raw_snapshot_path=tmp_path / "upcoming.json",
+    )
+
+    assert fixtures == ()

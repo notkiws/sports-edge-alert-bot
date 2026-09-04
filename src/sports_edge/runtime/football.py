@@ -88,9 +88,13 @@ def collect_upcoming_fixtures(
         for item in raw_matches:
             if not isinstance(item, dict):
                 raise ValueError("football fixture response contains an invalid match")
+            if item.get("status") not in {
+                MatchStatus.SCHEDULED.value,
+                MatchStatus.TIMED.value,
+            }:
+                continue
             match = adapter.normalize_match(item)
-            if match.status in {MatchStatus.SCHEDULED, MatchStatus.TIMED}:
-                fixtures.append(match)
+            fixtures.append(match)
     if raw_snapshot_path is not None:
         raw_snapshot_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = raw_snapshot_path.with_suffix(".json.tmp")
@@ -118,6 +122,19 @@ def _grade(snapshot: UpcomingFootballFeatureSnapshot) -> str:
     if minimum_history >= 5:
         return "B"
     return "C"
+
+
+def _grade_c_reasons(
+    snapshot: UpcomingFootballFeatureSnapshot,
+) -> tuple[str, str]:
+    counts = (
+        f"{snapshot.home_team_name}: {snapshot.home_prior_matches}, "
+        f"{snapshot.away_team_name}: {snapshot.away_prior_matches}"
+    )
+    return (
+        f"Limited prior-match history ({counts}).",
+        f"Riwayat pertandingan sebelumnya terbatas ({counts}).",
+    )
 
 
 def qualify_runtime_forecasts(
@@ -153,6 +170,8 @@ def qualify_runtime_forecasts(
         ),
     )
     selections: list[FootballReportSelection] = []
+    grade = _grade(snapshot)
+    grade_reason_en, grade_reason_id = _grade_c_reasons(snapshot)
     for market, selection_en, selection_id, probability in candidates:
         if market not in settings.football_enabled_markets:
             continue
@@ -171,9 +190,9 @@ def qualify_runtime_forecasts(
                 probability=probability,
                 historical_hit_rate=hit_rate,
                 historical_sample_size=sample_size,
-                grade=_grade(snapshot),
-                reasoning_en="Calibrated probability meets the frozen threshold.",
-                reasoning_id="Probabilitas terkalibrasi memenuhi ambang tetap.",
+                grade=grade,
+                reasoning_en=grade_reason_en,
+                reasoning_id=grade_reason_id,
                 warning_en="Probability forecast only; odds were not evaluated.",
                 warning_id="Hanya prediksi probabilitas; odds tidak dievaluasi.",
             )

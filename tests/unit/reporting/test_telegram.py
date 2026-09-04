@@ -50,6 +50,28 @@ def test_render_empty_day_is_bilingual() -> None:
     )
 
 
+def test_render_grade_c_includes_concise_bilingual_reason() -> None:
+    message = render_daily_report(
+        (
+            replace(
+                selection(),
+                grade="C",
+                reasoning_en="Limited prior-match history (Arsenal: 20, Chelsea: 0).",
+                reasoning_id=(
+                    "Riwayat pertandingan sebelumnya terbatas "
+                    "(Arsenal: 20, Chelsea: 0)."
+                ),
+            ),
+        )
+    )
+
+    assert message.endswith(
+        "Grade / Nilai: C\n"
+        "Reason / Alasan: Limited prior-match history (Arsenal: 20, Chelsea: 0). "
+        "/ Riwayat pertandingan sebelumnya terbatas (Arsenal: 20, Chelsea: 0)."
+    )
+
+
 def test_render_filters_below_floor_and_disabled_markets() -> None:
     message = render_daily_report(
         (
