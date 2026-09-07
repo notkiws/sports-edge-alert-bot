@@ -64,6 +64,21 @@ def test_scheduled_match_allows_scores_to_be_absent() -> None:
     assert match.quality_flags == frozenset()
 
 
+@pytest.mark.parametrize(
+    ("code", "name"),
+    (("BL1", "Bundesliga"), ("FL1", "Ligue 1")),
+)
+def test_normalizes_newly_verified_free_competitions(code: str, name: str) -> None:
+    payload = deepcopy(finished_payload())
+    payload["competition"]["code"] = code  # type: ignore[index]
+    payload["competition"]["name"] = name  # type: ignore[index]
+
+    match = FootballDataOrgAdapter().normalize_match(payload)
+
+    assert match.competition.code == code
+    assert match.competition.name == name
+
+
 def test_rejects_competition_outside_verified_free_allowlist() -> None:
     payload = deepcopy(finished_payload())
     payload["competition"]["code"] = "EL"  # type: ignore[index]

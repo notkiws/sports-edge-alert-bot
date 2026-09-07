@@ -18,8 +18,18 @@ from sports_edge.providers.football_data_org import FootballDataOrgAdapter
 from sports_edge.reporting.telegram import FootballReportSelection
 
 _MARKET_EVIDENCE = {
-    "1X2": (0.7128, 296),
-    "TOTAL_2_5": (0.6735, 294),
+    "1X2": (0.7114, 447),
+    "TOTAL_2_5": (0.6765, 476),
+}
+_MARKET_EVIDENCE_BY_COMPETITION = {
+    "BL1": {
+        "1X2": (0.7857, 70),
+        "TOTAL_2_5": (0.6744, 86),
+    },
+    "FL1": {
+        "1X2": (0.6290, 62),
+        "TOTAL_2_5": (0.7170, 53),
+    },
 }
 _RESULT_ID = {
     "HOME": "TUAN RUMAH",
@@ -177,7 +187,11 @@ def qualify_runtime_forecasts(
             continue
         if probability < settings.football_probability_floor:
             continue
-        hit_rate, sample_size = _MARKET_EVIDENCE[market]
+        competition_evidence = _MARKET_EVIDENCE_BY_COMPETITION.get(
+            snapshot.competition_code,
+            _MARKET_EVIDENCE,
+        )
+        hit_rate, sample_size = competition_evidence[market]
         selections.append(
             FootballReportSelection(
                 competition=snapshot.competition_name,

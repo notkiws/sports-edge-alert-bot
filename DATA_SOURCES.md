@@ -41,12 +41,17 @@ Official URLs:
 Verified free-tier terms/features:
 
 - €0 forever;
-- 12 competitions;
+- the public pricing page advertises 12 competitions; the current authenticated
+  account returned 13 competitions during the deployment acceptance check;
 - delayed scores/schedules;
 - fixtures and league tables;
 - 10 calls/minute.
 
-The free highlights include Premier League, La Liga, Serie A, Eredivisie, and Champions League. Europa League is present in the provider’s overall catalogue, but its availability under the exact free account must be tested.
+The authenticated free account was verified to include Premier League, La Liga,
+Serie A, Eredivisie, Bundesliga (`BL1`), Ligue 1 (`FL1`), and Champions League.
+Live date-window requests for `BL1` and `FL1` both succeeded before activation.
+Europa League is present in the provider’s overall catalogue, but its availability
+under the exact free account must be tested.
 
 Useful for fixtures, results, tables, and result-based baseline models. Not sufficient alone for current injuries, comprehensive xG, historical bookmaker odds, or all V1 markets.
 

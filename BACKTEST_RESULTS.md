@@ -8,7 +8,9 @@ Football uses no bookmaker prices. Tennis historical probability validation is s
 
 ## Football methodology
 
-Data: 3,270 football-data.org matches from the five enabled competitions across the 2024/25 and 2025/26 seasons.
+Data: 4,491 completed, scored football-data.org matches from the seven enabled
+competitions across the 2024/25 and 2025/26 seasons. Bundesliga contributed 611
+matches and Ligue 1 contributed 610.
 
 The feature builder uses only prior UTC dates. Each expanding-window fold has three non-overlapping stages:
 
@@ -20,10 +22,10 @@ Evaluation windows do not overlap:
 
 | Fold | Train before | Calibration | Evaluation | Evaluation matches |
 |---|---|---|---|---:|
-| F1 | 2025-01-01 | 2025-01-01 to 2025-02-28 | 2025-03-01 to 2025-05-31 | 484 |
-| F2 | 2025-03-01 | 2025-03-01 to 2025-07-31 | 2025-08-01 to 2025-11-30 | 613 |
-| F3 | 2025-08-01 | 2025-08-01 to 2025-11-30 | 2025-12-01 to 2026-02-28 | 562 |
-| F4 | 2025-12-01 | 2025-12-01 to 2026-02-28 | 2026-03-01 to 2026-05-31 | 460 |
+| F1 | 2025-01-01 | 2025-01-01 to 2025-02-28 | 2025-03-01 to 2025-05-31 | 679 |
+| F2 | 2025-03-01 | 2025-03-01 to 2025-07-31 | 2025-08-01 to 2025-11-30 | 847 |
+| F3 | 2025-08-01 | 2025-08-01 to 2025-11-30 | 2025-12-01 to 2026-02-28 | 751 |
+| F4 | 2025-12-01 | 2025-12-01 to 2026-02-28 | 2026-03-01 to 2026-05-31 | 648 |
 
 The periods were inspected during model development, so these are rolling out-of-sample engineering diagnostics rather than an untouched research holdout.
 
@@ -33,15 +35,29 @@ Pooled across the four evaluation windows:
 
 | Probability floor | Market | Selections | Hit rate | 95% Wilson interval | Brier | Log loss | ECE |
 |---:|---|---:|---:|---:|---:|---:|---:|
-| 0.60 | 1X2 | 296 | 71.28% | 65.88%–76.14% | 0.2044 | 0.6048 | 0.0603 |
-| 0.60 | Total 2.5 | 294 | 67.35% | 61.79%–72.45% | 0.2195 | 0.6306 | 0.0312 |
-| 0.60 | BTTS | 110 | 59.09% | 49.75%–67.82% | 0.2418 | 0.6766 | 0.0439 |
-| 0.65 | 1X2 | 175 | 79.43% | 72.84%–84.75% | 0.1802 | 0.5584 | 0.1214 |
-| 0.65 | Total 2.5 | 110 | 71.82% | 62.79%–79.38% | 0.2045 | 0.5993 | 0.0394 |
-| 0.65 | BTTS | 30 | 60.00% | 42.32%–75.41% | 0.2414 | 0.6757 | 0.0834 |
-| 0.70 | 1X2 | 91 | 78.02% | 68.48%–85.30% | 0.1868 | 0.5812 | 0.1075 |
-| 0.70 | Total 2.5 | 24 | 70.83% | 50.83%–85.09% | 0.2032 | 0.5952 | 0.0117 |
-| 0.70 | BTTS | 8 | 62.50% | 30.57%–86.32% | 0.2387 | 0.6713 | 0.0819 |
+| 0.60 | 1X2 | 447 | 71.14% | 66.77%–75.15% | 0.2073 | 0.6105 | 0.0593 |
+| 0.60 | Total 2.5 | 476 | 67.65% | 63.32%–71.69% | 0.2165 | 0.6244 | 0.0308 |
+| 0.65 | 1X2 | 247 | 75.71% | 69.99%–80.64% | 0.1920 | 0.5828 | 0.0808 |
+| 0.65 | Total 2.5 | 188 | 74.47% | 67.79%–80.17% | 0.1941 | 0.5776 | 0.0584 |
+| 0.70 | 1X2 | 133 | 75.94% | 68.01%–82.41% | 0.1943 | 0.5959 | 0.0819 |
+| 0.70 | Total 2.5 | 55 | 74.55% | 61.70%–84.19% | 0.1922 | 0.5734 | 0.0227 |
+
+### Bundesliga and Ligue 1 activation gate
+
+At the frozen 0.60 floor, evaluated independently within the pooled seven-league
+model:
+
+| Competition | Market | Selections | Hit rate | 95% Wilson interval | Brier | Log loss | ECE |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Bundesliga | 1X2 | 70 | 78.57% | 67.61%–86.56% | 0.1948 | 0.5911 | 0.1786 |
+| Bundesliga | Total 2.5 | 86 | 67.44% | 56.98%–76.41% | 0.2084 | 0.6057 | 0.0292 |
+| Ligue 1 | 1X2 | 62 | 62.90% | 50.46%–73.84% | 0.2303 | 0.6520 | 0.0436 |
+| Ligue 1 | Total 2.5 | 53 | 71.70% | 58.43%–82.03% | 0.2102 | 0.6119 | 0.0943 |
+
+All four competition-market aggregates exceed the frozen 0.60 realized-rate gate,
+so `BL1` and `FL1` are enabled. Ligue 1 1X2 is the weakest result and has a broad
+interval; its alert displays the exact 62.90% / n=62 historical evidence rather than
+the pooled seven-league statistic.
 
 ### Frozen football policy
 
@@ -72,4 +88,6 @@ This does not validate executable Polymarket edge. Tennis alerts remain disabled
 
 ## Operational gate
 
-No Telegram sending, scheduler, automatic betting, wallet signing, deposits, withdrawals, or stakes are enabled by this validation.
+Football Telegram delivery is enabled only for frozen-policy selections after its
+separate controlled transport test. Automatic betting, wallet signing, deposits,
+withdrawals, and staking remain absent.

@@ -73,11 +73,38 @@ def test_runtime_qualification_uses_only_frozen_markets_and_metrics() -> None:
         ("TOTAL_2_5", "OVER 2.5"),
         ("1X2", "HOME"),
     ]
-    assert selections[0].historical_hit_rate == 0.6735
-    assert selections[0].historical_sample_size == 294
-    assert selections[1].historical_hit_rate == 0.7128
-    assert selections[1].historical_sample_size == 296
+    assert selections[0].historical_hit_rate == 0.6765
+    assert selections[0].historical_sample_size == 476
+    assert selections[1].historical_hit_rate == 0.7114
+    assert selections[1].historical_sample_size == 447
     assert all(item.grade == "A" for item in selections)
+
+
+def test_new_leagues_use_their_own_chronological_backtest_evidence() -> None:
+    probabilities = FootballProbabilities(
+        expected_home_goals=1.8,
+        expected_away_goals=0.8,
+        home_win=0.65,
+        draw=0.22,
+        away_win=0.13,
+        over_2_5=0.70,
+        both_teams_to_score=0.90,
+    )
+    expected = {
+        "BL1": {"1X2": (0.7857, 70), "TOTAL_2_5": (0.6744, 86)},
+        "FL1": {"1X2": (0.6290, 62), "TOTAL_2_5": (0.7170, 53)},
+    }
+
+    for code, evidence in expected.items():
+        selections = qualify_runtime_forecasts(
+            replace(snapshot(), competition_code=code),
+            probabilities,
+        )
+        actual = {
+            item.market: (item.historical_hit_rate, item.historical_sample_size)
+            for item in selections
+        }
+        assert actual == evidence
 
 
 def test_grade_c_reason_identifies_each_teams_prior_match_count() -> None:

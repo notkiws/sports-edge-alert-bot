@@ -39,6 +39,8 @@ Target:
 - La Liga
 - Serie A
 - Eredivisie
+- Bundesliga
+- Ligue 1
 - UEFA Champions League main competition
 - UEFA Europa League main competition, only if available under the selected account
 
