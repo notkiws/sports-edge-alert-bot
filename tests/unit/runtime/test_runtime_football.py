@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from sports_edge.domain.football import (
@@ -14,6 +15,7 @@ from sports_edge.domain.football import (
 from sports_edge.features.football import UpcomingFootballFeatureSnapshot
 from sports_edge.models.football import FootballProbabilities
 from sports_edge.runtime.football import (
+    _model_history_pools,
     collect_upcoming_fixtures,
     load_historical_matches,
     produce_runtime_forecasts,
@@ -56,6 +58,19 @@ def snapshot() -> UpcomingFootballFeatureSnapshot:
     )
 
 
+def test_expansion_history_is_isolated_from_legacy_model() -> None:
+    premier_league = SimpleNamespace(competition=SimpleNamespace(code="PL"))
+    bundesliga = SimpleNamespace(competition=SimpleNamespace(code="BL1"))
+    ligue_one = SimpleNamespace(competition=SimpleNamespace(code="FL1"))
+
+    legacy, expansion = _model_history_pools(
+        (premier_league, bundesliga, ligue_one)  # type: ignore[arg-type]
+    )
+
+    assert [item.competition.code for item in legacy] == ["PL"]
+    assert [item.competition.code for item in expansion] == ["PL", "BL1", "FL1"]
+
+
 def test_runtime_qualification_uses_only_frozen_markets_and_metrics() -> None:
     probabilities = FootballProbabilities(
         expected_home_goals=1.8,
@@ -73,10 +88,10 @@ def test_runtime_qualification_uses_only_frozen_markets_and_metrics() -> None:
         ("TOTAL_2_5", "OVER 2.5"),
         ("1X2", "HOME"),
     ]
-    assert selections[0].historical_hit_rate == 0.6765
-    assert selections[0].historical_sample_size == 476
-    assert selections[1].historical_hit_rate == 0.7114
-    assert selections[1].historical_sample_size == 447
+    assert selections[0].historical_hit_rate == 0.6735
+    assert selections[0].historical_sample_size == 294
+    assert selections[1].historical_hit_rate == 0.7128
+    assert selections[1].historical_sample_size == 296
     assert all(item.grade == "A" for item in selections)
 
 

@@ -45,7 +45,7 @@ Pooled across the four evaluation windows:
 ### Bundesliga and Ligue 1 activation gate
 
 At the frozen 0.60 floor, evaluated independently within the pooled seven-league
-model:
+expansion model:
 
 | Competition | Market | Selections | Hit rate | 95% Wilson interval | Brier | Log loss | ECE |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -58,6 +58,18 @@ All four competition-market aggregates exceed the frozen 0.60 realized-rate gate
 so `BL1` and `FL1` are enabled. Ligue 1 1X2 is the weakest result and has a broad
 interval; its alert displays the exact 62.90% / n=62 historical evidence rather than
 the pooled seven-league statistic.
+
+### Expansion isolation
+
+The original five-competition strategy remains frozen. Its model fitting,
+calibration, rolling-form features, threshold, market allowlist, and historical
+evidence use only `PL`, `PD`, `SA`, `DED`, and `CL`, exactly as before this expansion.
+
+Only Bundesliga and Ligue 1 fixtures use the validated seven-league expansion model.
+This also prevents new domestic history for Bundesliga/Ligue 1 clubs from changing
+Champions League features in the legacy path. A regression run compared 29 current
+legacy selections against commit `7ddfb4d`; every selection, probability, grade, and
+historical-evidence field matched exactly.
 
 ### Frozen football policy
 

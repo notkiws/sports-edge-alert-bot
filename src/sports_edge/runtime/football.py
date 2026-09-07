@@ -14,12 +14,15 @@ from sports_edge.features.football import (
     UpcomingFootballFeatureSnapshot,
 )
 from sports_edge.models.football import FootballPoissonModel, FootballProbabilities
-from sports_edge.providers.football_data_org import FootballDataOrgAdapter
+from sports_edge.providers.football_data_org import (
+    EXPANSION_COMPETITIONS,
+    FootballDataOrgAdapter,
+)
 from sports_edge.reporting.telegram import FootballReportSelection
 
 _MARKET_EVIDENCE = {
-    "1X2": (0.7114, 447),
-    "TOTAL_2_5": (0.6765, 476),
+    "1X2": (0.7128, 296),
+    "TOTAL_2_5": (0.6735, 294),
 }
 _MARKET_EVIDENCE_BY_COMPETITION = {
     "BL1": {
@@ -54,6 +57,20 @@ class FixtureClient(Protocol):
         date_from: date,
         date_to: date,
     ) -> Mapping[str, Any]: ...
+
+
+def _model_history_pools(
+    history: Iterable[FootballMatch],
+) -> tuple[tuple[FootballMatch, ...], tuple[FootballMatch, ...]]:
+    """Keep expansion data from changing the frozen legacy model or features."""
+
+    expansion = tuple(history)
+    legacy = tuple(
+        match
+        for match in expansion
+        if match.competition.code not in EXPANSION_COMPETITIONS
+    )
+    return legacy, expansion
 
 
 def load_historical_matches(cache_root: Path) -> tuple[FootballMatch, ...]:
@@ -224,35 +241,66 @@ def produce_runtime_forecasts(
     historical_matches = tuple(history)
     upcoming_matches = tuple(fixtures)
     builder = FootballFeatureBuilder()
-    snapshots = builder.build(historical_matches)
-    unique_dates = sorted({item.kickoff_utc.date() for item in snapshots})
-    if len(unique_dates) < 2:
-        raise ValueError("football history must span at least two dates")
-    calibration_index = min(
-        max(1, int(len(unique_dates) * 0.8)),
-        len(unique_dates) - 1,
+    legacy_history, expansion_history = _model_history_pools(historical_matches)
+
+    def fit_model(
+        model_history: tuple[FootballMatch, ...],
+    ) -> tuple[FootballPoissonModel, int, int, int]:
+        snapshots = builder.build(model_history)
+        unique_dates = sorted({item.kickoff_utc.date() for item in snapshots})
+        if len(unique_dates) < 2:
+            raise ValueError("football history must span at least two dates")
+        calibration_index = min(
+            max(1, int(len(unique_dates) * 0.8)),
+            len(unique_dates) - 1,
+        )
+        calibration_start = unique_dates[calibration_index]
+        training = tuple(
+            item for item in snapshots if item.kickoff_utc.date() < calibration_start
+        )
+        calibration = tuple(
+            item for item in snapshots if item.kickoff_utc.date() >= calibration_start
+        )
+        model = FootballPoissonModel()
+        model.fit(training)
+        model.calibrate(calibration)
+        return model, len(snapshots), len(training), len(calibration)
+
+    legacy_model, _, _, _ = fit_model(legacy_history)
+    expansion_model, history_size, training_size, calibration_size = fit_model(
+        expansion_history
     )
-    calibration_start = unique_dates[calibration_index]
-    training = tuple(
-        item for item in snapshots if item.kickoff_utc.date() < calibration_start
+    legacy_fixtures = tuple(
+        match
+        for match in upcoming_matches
+        if match.competition.code not in EXPANSION_COMPETITIONS
     )
-    calibration = tuple(
-        item for item in snapshots if item.kickoff_utc.date() >= calibration_start
+    expansion_fixtures = tuple(
+        match
+        for match in upcoming_matches
+        if match.competition.code in EXPANSION_COMPETITIONS
     )
-    model = FootballPoissonModel()
-    model.fit(training)
-    model.calibrate(calibration)
-    upcoming_snapshots = builder.build_upcoming(historical_matches, upcoming_matches)
+    model_snapshots = (
+        (
+            legacy_model,
+            builder.build_upcoming(legacy_history, legacy_fixtures),
+        ),
+        (
+            expansion_model,
+            builder.build_upcoming(expansion_history, expansion_fixtures),
+        ),
+    )
     selections = tuple(
         selection
+        for model, upcoming_snapshots in model_snapshots
         for snapshot in upcoming_snapshots
         for selection in qualify_runtime_forecasts(snapshot, model.predict(snapshot))
     )
     return RuntimeForecastRun(
-        history_size=len(snapshots),
-        training_size=len(training),
-        calibration_size=len(calibration),
-        fixture_size=len(upcoming_snapshots),
+        history_size=history_size,
+        training_size=training_size,
+        calibration_size=calibration_size,
+        fixture_size=sum(len(items) for _, items in model_snapshots),
         selections=selections,
     )
 

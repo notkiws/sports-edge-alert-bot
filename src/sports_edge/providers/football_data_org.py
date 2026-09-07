@@ -11,9 +11,10 @@ from sports_edge.domain.football import (
     MatchStatus,
 )
 
+EXPANSION_COMPETITIONS = frozenset({"BL1", "FL1"})
 VERIFIED_FREE_COMPETITIONS = frozenset(
-    {"PL", "PD", "SA", "DED", "CL", "BL1", "FL1"}
-)
+    {"PL", "PD", "SA", "DED", "CL"}
+) | EXPANSION_COMPETITIONS
 
 
 class UnsupportedCompetition(ValueError):
